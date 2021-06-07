@@ -1,6 +1,9 @@
 from typing import Set, Tuple, Dict, List
 from collections import namedtuple
 from tqdm import tqdm
+from os import get_terminal_size  # so we can print stuff beautifully
+
+TERMINAL_SIZE = get_terminal_size()
 
 # We use a slightly modified definition of a Turing machine from Wikipedia.
 # A Turing machine M is a 7-tuple
@@ -53,18 +56,27 @@ class TuringMachine:
         self.head_ = head
         self.current_state_ = initial_state
 
-    def run(self, max_iter, verbose=True):
-        def update_():
-            self.current_state, self.current_state, head_dir = self.transition_func[
-                (self.current_state, self.tape[self.head_])
-            ]
-            self.head_ += 1 if head_dir == "L" else -1
+    def update_(self):
+        self.current_state_, self.tape[self.head_], head_dir = self.transition_func[
+            (self.current_state_, self.tape[self.head_])
+        ]
+        self.head_ += 1 if head_dir == "L" else -1
 
+    def run(self, max_iter, verbose=True):
         if verbose:
-            curr_tape = []
+            columns = TERMINAL_SIZE.columns
+            machine_text_width = int(0.8 * (columns - 16))
+            for i in range(max_iter):
+                iter_info_string = f"{i} {self.current_state_}"
+                curr_tape = "".join([self.tape[i] for i in range(machine_text_width)])
+                head_string = "".join([" " if i != self.head_ else "^" for i in range(machine_text_width)])
+                print(iter_info_string.ljust(16), curr_tape)
+                print(" "*16, head_string)
+                self.update_()
         else:
             for i in tqdm(range(max_iter)):
-                update()
+                self.update_()
+
 
 class Tape:
     def __init__(self, blank_symbol, initial_tape=None):
@@ -79,29 +91,3 @@ class Tape:
 
     def __setitem__(self, key, item):
         self.tape[key] = item
-
-
-# Example Turing Machine object from "Destroy all Software" screencast (modified to fit our format)
-
-X_B_TRANSITION_FUNC = {
-    ("s1", "B"): ("s2", "X", "R"),
-    ("s2", "B"): ("s3", "B", "L"),
-    ("s3", "X"): ("s4", "B", "R"),
-    ("s4", "B"): ("s1", "B", "L"),
-}
-
-t = TuringMachine(
-    states={"s1", "s2", "s3", "s4", "s5"},
-    alphabet={"B", "X"},
-    blank_symbol="B",
-    initial_tape=["B", "B"],
-    initial_state="s1",
-    final_states={"s5"},
-    transition_func={
-        ("s1", "B"): ("s2", "X", "R"),
-        ("s2", "B"): ("s3", "B", "L"),
-        ("s3", "X"): ("s4", "B", "R"),
-        ("s4", "B"): ("s1", "B", "L"),
-    },
-    head=0,
-)
